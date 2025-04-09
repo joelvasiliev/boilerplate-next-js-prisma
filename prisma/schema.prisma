@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Delivery {
+  id       String @id @default(uuid())
+  sales_id Int    @unique(map: "Delivery_sales_id_key")
+
+  address        String
+  address_number String
+  complement     String?
+  neighborhood   String?
+  city           String?
+  state_code     String?
+  cep            String?
+
+  sales          Sales            @relation(fields: [sales_id], references: [id], map: "Delivery_sales_id_fkey", onDelete: Cascade)
+  deliveryevents DeliveryEvents[]
+}
+
+model DeliveryEvents {
+  id            String               @id @default(uuid())
+  sales_id      String
+  delivery_id   String
+  tracking_code String
+  origin        DeliveryEventsOrigin
+  description   String
+  status        DeliveryEventsStatus
+  date          DateTime
+
+  created_at DateTime @default(now())
+
+  delivery_event_situation_id Int
+
+  deliveryEventsSituation DeliveryEventsSituation @relation(fields: [delivery_event_situation_id], references: [id])
+
+  delivery Delivery @relation(fields: [delivery_id], references: [id], map: "DeliveryEvents_delivery_id_fkey", onDelete: Cascade)
+}
+
+model Sales {
+  id            Int               @id @unique
+  customer_id   String?
+  content       String            @unique
+  annotation    String
+  invoice       String?
+  created_at    DateTime
+  tag           PaymentStatusItem @default(PENDING)
+  delivery_type String?
+
+  delivery_id String?
+  user_id     String?
+  admin_check Boolean @default(false)
+
+  approved              Boolean?
+  post_approved_sale_id String?
+
+  delivery      Delivery?
+  user          User?           @relation(fields: [user_id], references: [id])
+  customer      Customer?       @relation(fields: [customer_id], references: [id])
+  ProductSale   ProductSale[]
+  PaymentEvents PaymentEvents[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime?
+  password      String?
+  image         String?
+  role          UserRole
+  cpf           String?
+  isFirstLogin  Boolean   @default(true)
+  phone         String?
+
+  godfather_id String?
+
+  account   Account[]
+  sales     Sales[]
+  session   Session[]
+  customers Customer[]
+}
+
+model Customer {
+  id    String  @id @default(uuid())
+  name  String?
+  email String
+  cpf   String?
+  phone String?
+
+  affiliate_id String?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime?
+  Sales         Sales[]
+  User          User?           @relation(fields: [affiliate_id], references: [id])
+  PaymentEvents PaymentEvents[]
+}
+
+model ProductSale {
+  id         String @id @default(uuid())
+  product_id String
+  amount     Int
+  invoicing  Float
+  profit     Float
+  sale_id    Int
+
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [product_id], references: [id])
+  sales   Sales   @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id          String         @id @default(uuid())
+  name        String?
+  description String?
+  media       ProductMedia[]
+
+  enabled Boolean @default(false)
+
+  ProductSale  ProductSale[]
+  ProductPrice ProductPrice[]
+}
+
+model ProductPrice {
+  id   String @id @default(uuid())
+  name String @default("")
+
+  min   Int
+  price Int
+  cost  Int
+
+  checkout_url String
+  product_id   String
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+}
+
+enum ProductMediaType {
+  PHOTO
+}
+
+model ProductMedia {
+  id   String           @id @default(uuid())
+  type ProductMediaType
+  url  String
+
+  product_id String
+  product    Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+}
+
+enum DeliveryEventsOrigin {
+  API
+  CORREIO
+  TMS
+  USER
+  COD
+
+  @@map("DeliveryEventsOrigin")
+}
+
+enum DeliveryEventsStatus {
+  CANCELADO
+  PREPARANDO_ENVIO
+  ENTREGUE
+  DEVOLVER_CLIENTE
+  AGUARDANDO_RETIRADA
+  ROUBO
+  TRANSITO
+  TRIADO
+  ENTREGA_NAO_REALIZADA
+  ESTORNO
+  REENVIADO
+  TRANSITO_RETORNO
+  DESCONHECIDO
+  PRONTO_DESPACHO
+  DEVOLVIDO_CLIENTE
+  OBJETO_BLOQUEADO
+  DISPONIVEL_RETIRADA
+  OBJETO_COLETADO
+  DEVOLVIDO
+  EXTRAVIO
+  AGUARDANDO_COLETA
+  AFERIDO
+  ATRASADO
+  RETORNO
+  POSTADO
+  AGUARDANDO_OBJETO_AGENCIA
+
+  AGUARDANDO_APROVACAO
+  RECUSADO_ADMIN
+
+  @@map("DeliveryEventsStatus")
+}
+
+enum UserRole {
+  OWNER
+  ADMINISTRATOR
+  AFFILIATE
+  MEMBER
+
+  @@map("UserRole")
+}
+
+model DeliveryEventsSituation {
+  id        Int                  @id
+  situacao  String
+  descricao String
+  tipo      DeliveryEventsStatus
+  color     String
+  fontColor String
+
+  DeliveryEvents DeliveryEvents[]
+}
+
+enum PaymentStatusItem {
+  PENDING
+  REFUSED
+  COMPLETED
+  DEFAULTER
+}
+
+model PaymentEvents {
+  id String @id @default(uuid())
+
+  customer_id       String
+  payment_status_id Int
+  sale_id           Int
+
+  customer      Customer      @relation(fields: [customer_id], references: [id])
+  paymentStatus PaymentStatus @relation(fields: [payment_status_id], references: [id])
+  sale          Sales         @relation(fields: [sale_id], references: [id])
+
+  created_at DateTime @default(now())
+}
+
+model PaymentStatus {
+  id            Int               @id @default(autoincrement())
+  description   String?
+  status        PaymentStatusItem
+  color         String
+  fontColor     String
+  PaymentEvents PaymentEvents[]
+}
