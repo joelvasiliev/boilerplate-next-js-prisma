@@ -47,8 +47,6 @@ const handler = NextAuth({
                 id: user.id,
                 email: user.email,
                 image: user.image,
-                role: user.role,
-                isFirstLogin: user.isFirstLogin
               };
             }
           }

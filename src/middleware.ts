@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
 
   if (!token) {
     if (url.pathname !== '/') {
-      url.pathname = '/';
+      url.pathname = '/login';
       return NextResponse.redirect(url);
     }
   } else {
@@ -17,11 +17,6 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }
-    
-    // if (token.user?.isFirstLogin) {
-    //   url.pathname = '/completar-cadastro';
-    //   return NextResponse.redirect(url);
-    // }
   }
 
   return NextResponse.next();
@@ -30,6 +25,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/',
+    '/login',
     '/dashboard/:path*',
   ],
 };
